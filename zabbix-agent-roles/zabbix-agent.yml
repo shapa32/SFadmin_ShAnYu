@@ -1,0 +1,43 @@
+---
+- hosts: all
+  become: yes
+  tasks:
+          - name: Add repo CentOS
+            yum:
+                    name: https://repo.zabbix.com/zabbix/5.0/rhel/7/x86_64/zabbix-agent-5.0.9-1.el7.x86_64.rpm
+                    state: present
+            when:
+                    ansible_os_family == "RedHat"
+          - name: Install zabbix-agent on RedHat Family
+            yum:
+                    name=zabbix-agent
+            when:
+                    ansible_os_family == "RedHat"
+            notify:
+                    zabbix service
+          - name: Install zabbix-agent on Ubuntu
+            apt:
+                    name=zabbix-agent
+                    state=latest
+            when:
+                    ansible_os_family == "Debian"
+            notify:
+                    zabbix service
+          - name: Set zabbix_agent conf
+            template:
+                    src:
+                            zabbix_agentd.conf.j2
+                    dest:
+                            /etc/zabbix/zabbix_agent.conf
+            notify:
+                    restart zabbix-agent
+  handlers:
+          - name: zabbix service
+            service:
+                    name: zabbix-agent
+                    enabled: yes
+                    state: started
+          - name: restart zabbix-agent
+            service:
+                    name: zabbix-agent
+                    state: restarted
