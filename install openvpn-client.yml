@@ -1,0 +1,35 @@
+---
+- hosts: all
+  become: yes
+  tasks:
+          - name: Add repo CentOS
+            yum:
+                    name: epel-release
+                    state: present
+            when:
+                    ansible_os_family == "RedHat"
+          - name: Install openvpn on RedHat Family
+            yum:
+                    name=openvpn
+            when:
+                    ansible_os_family == "RedHat"
+            notify:
+                    openvpn service
+          - name: Install openvpn on Ubuntu
+            apt:
+                    name=openvpn
+                    state=latest
+            when:
+                    ansible_os_family == "Debian"
+            notify:
+                    openvpn service
+  handlers:
+          - name: openvpn service
+            service:
+                    name: openvpn
+                    enabled: yes
+                    state: started
+          - name: restart openvpn
+            service:
+                    name: openvpn
+                    state: restarted
