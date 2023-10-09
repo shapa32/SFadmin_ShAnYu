@@ -1,0 +1,145 @@
+---
+- hosts: centos.my
+  gather_facts: yes
+
+  tasks:
+    - name: Download Elastic rpm Package
+      get_url:
+        url: https://cloud.mail.ru/public/Uyx8/1fZss7UhW/ELK/8.7.0/rpm/elasticsearch-8.7.0-x86_64.rpm
+        dest: /tmp
+
+    - name: Install Elastic rpm Package
+      become: yes
+      yum:
+        rpm: /tmp/elasticsearch-8.7.0-x86_64.rpm
+    
+    - name: Update Elastic Config (IP Address to 0.0.0.0)
+      become: yes
+      lineinfile:
+        destfile: /etc/elasticsearch/elasticsearch.yml
+        regexp: 'network.host'
+        line: 'network.host: 0.0.0.0'
+    
+    - name: Updating Elastic Config (Port Number)
+      become: yes
+      lineinfile:
+        destfile: /etc/elasticsearch/elasticsearch.yml
+        regexp: 'http.port'
+        line: 'http.port: 9200'
+     
+    - name: Start ElasticSearch Service
+      become: yes
+      service:
+        name: elasticsearch
+        state: started
+
+  tasks:
+    - name: Download Kibana rpm Package
+      get_url:
+        url: https://cloud.mail.ru/public/Uyx8/1fZss7UhW/ELK/8.7.0/rpm/kibana-8.7.0-x86_64.rpm
+        dest: /tmp
+
+    - name: Install Kibana rpm Package
+      become: yes
+      yum:
+        rpm: /tmp/kibana-8.7.0-x86_64.rpm
+    
+    - name: Update Kibana Config (IP Address)
+      become: yes
+      lineinfile:
+        destfile: /etc/kibana/kibana.yml
+        regexp: 'server.host'
+        line: 'server.host: "0.0.0.0"'
+    
+    - name: Update Kibana Config (Kibana URL)
+      become: yes
+      lineinfile:
+        destfile: /etc/kibana/kibana.yml
+        regexp: 'elasticsearch.hosts'
+        line: 'elasticsearch.hosts: ["http://127.0.0.1:9200"]'
+    
+    - name: Start Kibana Service
+      become: yes
+      service:
+        name: kibana
+        state: started
+
+  tasks:
+    - name: Download Logstash rpm Package
+      get_url:
+        url: https://cloud.mail.ru/public/Uyx8/1fZss7UhW/ELK/8.7.0/rpm/logstash-8.7.0-x86_64.rpm
+        dest: /tmp
+    
+    - name: Install Logstash rpm Package
+      become: yes
+      yum:
+        rpm: /tmp/logstash-8.7.0-x86_64.rpm
+
+    - name: Create Logstash Pipeline File
+      become: yes
+      file:
+         path: /etc/logstash/conf.d/main.conf
+         state: touch
+
+    - name: Add Logstash Pipeline Configuration
+      become: yes
+      blockinfile:
+         path: /etc/logstash/conf.d/main.conf
+         marker: ""
+         block: |
+           input {
+             beats {
+               port => 5044
+             }
+           }
+           output {
+             elasticsearch { hosts => ["127.0.0.1:9200"]
+             }
+           }
+
+    - name: Download Filebeat Package
+      get_url:
+        url: https://cloud.mail.ru/public/Uyx8/1fZss7UhW/ELK/8.7.0/rpm/filebeat-8.7.0-x86_64.rpm
+        dest: /tmp
+    
+    - name: Install FileBeat rpm Package
+      become: yes
+      yum:
+        rpm: /tmp/filebeat-8.7.0-x86_64.rpm
+    
+    - name: Remove FileBeat YAML File
+      become: yes
+      file:
+        path: /etc/filebeat/filebeat.yml
+        state: absent
+    
+    - name: Create New FileBeat YAML File
+      become: yes
+      file:
+         path: /etc/filebeat/filebeat.yml
+         state: touch
+
+    - name: Add FileBeat YAML Configuration
+      become: yes
+      blockinfile:
+         path: /etc/filebeat/filebeat.yml
+         marker: ""
+         block: |
+           filebeat.inputs:
+           - type: log
+             paths:
+              - /var/log/*.log
+           output.logstash:
+              hosts: ["localhost:5044"]
+    
+    - name: Start Logstash Service
+      become: yes
+      service:
+        name: logstash
+        state: started
+      
+    - name: Start FileBeat Service
+      become: yes
+      service:
+        name: filebeat
+        state: started
