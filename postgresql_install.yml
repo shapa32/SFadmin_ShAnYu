@@ -1,0 +1,18 @@
+---
+- hosts: centos.my
+  become: yes
+  tasks:
+          - name: Install Repo PostgreSQL
+            yum:
+                    name=https://download.postgresql.org/pub/repos/yum/reporpms/EL-7-x86_64/pgdg-redhat-repo-latest.noarch.rpm
+          - name: Install PostgreSQL on RedHat Family
+            yum:
+                    name=postgresql12-server
+            notify:
+                    postrgeSQL service
+  handlers:
+          - name: postgreSQL service
+            service:
+                    name: postgresql-12
+                    enabled: yes
+                    state: started
